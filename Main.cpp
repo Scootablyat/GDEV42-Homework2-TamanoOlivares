@@ -63,7 +63,7 @@ std::vector<Vector2> ComputeForBezierCurve(int r, int s, int n, std::vector<int>
             float f = 1 - currentStep;
             float g = currentStep;
             //std::cout << "control points: " << controlPoints[j].x << " ," << controlPoints[j].y << std::endl;
-            point.x += lastPascalRow[j] * controlPoints[j].x * pow(f, r-j) * pow(g, j) ;
+            point.x += lastPascalRow[j] * controlPoints[j].x * pow(f, r-j) * pow(g, j);
             point.y += lastPascalRow[j] * controlPoints[j].y * pow(f, r-j) * pow(g, j);
         }
         
@@ -73,10 +73,44 @@ std::vector<Vector2> ComputeForBezierCurve(int r, int s, int n, std::vector<int>
     
 }
 
-void draw(std::vector<Vector2> bezierCurvePoints, std::vector<Vector2> controlPoints, float radius){
+std::vector<Vector2> GetTangents(int r, int v, int n, std::vector<int> secondToLastRow, std::vector<Vector2> controlPoints){
+    std::vector<Vector2> tangents;
+    float stepSize = (float)1/ (float) v;
+    float currentStep = 0;
+
+    for (size_t i = 1; i <= v; i++)
+    {
+        currentStep += stepSize;
+        Vector2 point;
+        point.x = 0;
+        point.y = 0;
+        
+        for (size_t j = 0; j < r; j++)
+        {
+            float f = 1 - currentStep;
+            float g = currentStep;
+            
+            //std::cout << "current step: " << currentStep << std::endl;
+            point.x +=  (controlPoints[j+1].x - controlPoints[j].x) * r * secondToLastRow[j] * pow(f, r-j) * pow(g, j);
+            point.y +=  (controlPoints[j+1].y - controlPoints[j].y) * r * secondToLastRow[j] * pow(f, r-j) * pow(g, j);
+            /*std::cout << "control points for tangent calculation: (" << controlPoints[j+1].x << " ," << controlPoints[j+1].y << ") and (" 
+            << controlPoints[j].x << " ," << controlPoints[j].y << std::endl; */
+            
+        }
+        tangents.push_back(point); // Vector2Normalize(point)
+        //std::cout << "Tangents: " << point.x << " ," << point.y << std::endl;
+    }
+    return tangents;
+}
+
+void draw(std::vector<Vector2> bezierCurvePoints, std::vector<Vector2> controlPoints, float radius, std::vector<Vector2> tangents){
     for (size_t i = 0; i < controlPoints.size(); i++)
     {
-        DrawCircle(controlPoints[i].x, controlPoints[i].y, radius, GREEN); // if point on curve change color
+        DrawCircle(controlPoints[i].x, controlPoints[i].y, radius, GREEN); 
+    }
+    for (size_t i = 0; i < tangents.size(); i++)
+    {
+        DrawLine(bezierCurvePoints[tangents.size()*i].x, bezierCurvePoints[tangents.size()*i].y, tangents[i].x, tangents[i].y,RED);
     }
     for (size_t i = 0; i < bezierCurvePoints.size(); i++)
     {
@@ -94,12 +128,15 @@ bool IsControlPointValid(int r, int n, int x){ // work in progress
 int main(){
     int r; // order of the curve
     int s; // steps
+    int v;
     int n;
     float radius = 5;
     std::cout << "Input Order of the Curve:" << std::endl;
     std::cin >> r;
-    std::cout << "Input Steps:" << std::endl;
+    std::cout << "Input steps:" << std::endl;
     std::cin >> s;
+    std::cout << "Input number of times Tangents will be drawn:" << std::endl;
+    std::cin >> v;
     std::cout << "Input number of control points:" << std::endl;
     std::cin >> n; 
     if(!IsControlPointValid(r, n, 0)){
@@ -117,14 +154,25 @@ int main(){
 
     std::vector<std::vector<int>> lookupTable = GeneratePascalLookUpTable(r, s, n);
     std::vector<int> lastRow = lookupTable[lookupTable.size()-1];
-
     std::vector<Vector2> bezierCurvePoints = ComputeForBezierCurve(r, s, n, lastRow, controlPoints);
 
+
+    std::vector<int> secondToLastRow = lookupTable[lookupTable.size()-2];    
+    std::vector<Vector2> tangents = GetTangents(r, v, n, secondToLastRow, controlPoints);
+
+    for (size_t i = 0; i < secondToLastRow.size(); i++)
+    {
+        std::cout << secondToLastRow[i] << " ";
+    }
+    
+
+    /*
+    
     for (size_t i = 0; i < bezierCurvePoints.size(); i++)
     {
         std::cout << "Point " << i << " : " << bezierCurvePoints[i].x << ", " << bezierCurvePoints[i].y << std::endl;
     }
-
+    */
     /* / debug /
     
     for (size_t i = 0; i < lookupTable.size(); i++)
@@ -143,16 +191,17 @@ int main(){
         if(IsMouseButtonDown(0)){
             for (size_t i = 0; i < controlPoints.size(); i++)
             {
-                if(CheckCollisionPointCircle(GetMousePosition(), controlPoints[i], radius)){
+                if(CheckCollisionPointCircle(GetMousePosition(), controlPoints[i], radius+5)){
                     controlPoints[i] = GetMousePosition();
                     bezierCurvePoints = ComputeForBezierCurve(r, s, n, lastRow, controlPoints); // compute only when moving the curve
+                    tangents = GetTangents(r, v, n, secondToLastRow, controlPoints);
                 }
             }
         }
         BeginDrawing();
 
         ClearBackground(BLACK);
-        draw(bezierCurvePoints, controlPoints, radius);
+        draw(bezierCurvePoints, controlPoints, radius, tangents);
         EndDrawing();
     }
     CloseWindow();
