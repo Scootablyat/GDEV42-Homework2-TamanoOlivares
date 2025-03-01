@@ -1,3 +1,5 @@
+// g++ Main.cpp -o Main -I raylib/ -L raylib/ -lraylib -lopengl32 -lgdi32 -lwinmm
+//   ./Main.exe
 #include <raylib.h>
 #include <raymath.h>
 #include <math.h>
@@ -6,14 +8,24 @@
 #include <fstream>
 #include <vector>
 
-
 const int WINDOW_WIDTH = 800;
 const int WINDOW_HEIGHT = 600;
 const int FPS = 60;
-const int TIMESTEP = 1/FPS;
+const int TIMESTEP = 1 / FPS;
 
+struct Particle
+{
+    bool isActive = false;
+    Vector2 position;
+    float speed;
+    Color color = BLUE;
+    int currentCPoint;
+    int currentTanPoint;
+    float rotation;
+};
 
-std::vector<std::vector<int>> GeneratePascalLookUpTable(int r, int s, int n){ //
+std::vector<std::vector<int>> GeneratePascalLookUpTable(int r, int s, int n)
+{ //
     std::vector<std::vector<int>> pascalLookUpTable;
 
     // push initial base case
@@ -23,20 +35,23 @@ std::vector<std::vector<int>> GeneratePascalLookUpTable(int r, int s, int n){ //
     currentRow.clear();
 
     // manually creating the lookup table
-    for (size_t i = 0; i < r; i++)
+    for (int i = 0; i < r; i++)
     {
-        for (size_t j = 0; j < pascalLookUpTable.back().size()+1; j++)
+        for (int j = 0; j < pascalLookUpTable.back().size() + 1; j++)
         {
-            if(j == 0){
+            if (j == 0)
+            {
                 currentRow.push_back(1);
                 continue;
             }
-            if(j >= pascalLookUpTable.back().size()){
+            if (j >= pascalLookUpTable.back().size())
+            {
                 currentRow.push_back(1);
                 continue;
             }
-            if(j-1 >= 0 && j < pascalLookUpTable.back().size()){
-                currentRow.push_back(pascalLookUpTable.back()[j-1] + pascalLookUpTable.back()[j]);
+            if (j - 1 >= 0 && j < pascalLookUpTable.back().size())
+            {
+                currentRow.push_back(pascalLookUpTable.back()[j - 1] + pascalLookUpTable.back()[j]);
             }
         }
         pascalLookUpTable.push_back(currentRow);
@@ -46,102 +61,199 @@ std::vector<std::vector<int>> GeneratePascalLookUpTable(int r, int s, int n){ //
     return pascalLookUpTable;
 }
 
-std::vector<Vector2> ComputeForBezierCurve(int r, int s, int n, std::vector<int> lastPascalRow, std::vector<Vector2> controlPoints){
+std::vector<Vector2> ComputeForBezierCurve(int r, int s, int n, std::vector<int> lastPascalRow, std::vector<Vector2> controlPoints)
+{
     std::vector<Vector2> points;
-    float stepSize = (float)1/ (float) s;
+    float stepSize = (float)1 / (float)s;
     float currentStep = 0;
     // std::cout << "s: " << 1/s << std::endl;
-    for (size_t i = 1; i <= s; i++)
+    for (int i = 1; i <= s; i++)
     {
         currentStep += stepSize;
         Vector2 point;
         point.x = 0;
         point.y = 0;
-        
-        for (size_t j = 0; j < r+1; j++)
+
+        for (int j = 0; j < r + 1; j++)
         {
             float f = 1 - currentStep;
             float g = currentStep;
-            //std::cout << "control points: " << controlPoints[j].x << " ," << controlPoints[j].y << std::endl;
-            point.x += lastPascalRow[j] * controlPoints[j].x * pow(f, r-j) * pow(g, j);
-            point.y += lastPascalRow[j] * controlPoints[j].y * pow(f, r-j) * pow(g, j);
+            // std::cout << "control points: " << controlPoints[j].x << " ," << controlPoints[j].y << std::endl;
+            point.x += lastPascalRow[j] * controlPoints[j].x * pow(f, r - j) * pow(g, j);
+            point.y += lastPascalRow[j] * controlPoints[j].y * pow(f, r - j) * pow(g, j);
         }
-        
+
         points.push_back(point);
     }
     return points;
-    
 }
 
-std::vector<Vector2> GetTangents(int r, int v, int n, std::vector<int> secondToLastRow, std::vector<Vector2> controlPoints){
+std::vector<Vector2> GetTangents(int r, int v, int n, std::vector<int> secondToLastRow, std::vector<Vector2> controlPoints)
+{
     std::vector<Vector2> tangents;
-    float stepSize = (float)1/ (float) v;
-    float currentStep = 0;
+    float stepSize = 1.0f / (float)v;
+    float currentStep = 0.0f;
 
-    for (size_t i = 1; i <= v; i++)
+    for (int i = 1; i <= v; i++)
     {
         currentStep += stepSize;
         Vector2 point;
         point.x = 0;
         point.y = 0;
-        
-        for (size_t j = 0; j < r; j++)
+
+        for (int j = 0; j < r; j++)
         {
-            float f = 1 - currentStep;
+            float f = 1.0f - currentStep;
             float g = currentStep;
-            
-            //std::cout << "current step: " << currentStep << std::endl;
-            point.x +=  (controlPoints[j+1].x - controlPoints[j].x) * r * secondToLastRow[j] * pow(f, r-j) * pow(g, j);
-            point.y +=  (controlPoints[j+1].y - controlPoints[j].y) * r * secondToLastRow[j] * pow(f, r-j) * pow(g, j);
-            /*std::cout << "control points for tangent calculation: (" << controlPoints[j+1].x << " ," << controlPoints[j+1].y << ") and (" 
+
+            // std::cout << "current step: " << currentStep << std::endl;
+            point.x += (controlPoints[j + 1].x - controlPoints[j].x) * r * secondToLastRow[j] * pow(f, r - j) * pow(g, j);
+            point.y += (controlPoints[j + 1].y - controlPoints[j].y) * r * secondToLastRow[j] * pow(f, r - j) * pow(g, j);
+            /*std::cout << "control points for tangent calculation: (" << controlPoints[j+1].x << " ," << controlPoints[j+1].y << ") and ("
             << controlPoints[j].x << " ," << controlPoints[j].y << std::endl; */
-            
         }
         tangents.push_back(point); // Vector2Normalize(point)
-        //std::cout << "Tangents: " << point.x << " ," << point.y << std::endl;
+        // std::cout << "Tangents: " << point.x << " ," << point.y << std::endl;
     }
     return tangents;
 }
 
-std::vector<Vector2> GetTangentNormals(std::vector<Vector2> tangents){
+std::vector<Vector2> GetTangentNormals(std::vector<Vector2> tangents)
+{
     std::vector<Vector2> tangentNormals;
-    
-    for (size_t i = 0; i < tangents.size(); i++)
+
+    for (int i = 0; i < tangents.size(); i++)
     {
         tangentNormals.push_back(Vector2Normalize(tangents[i]));
     }
     return tangentNormals;
 }
 
-void draw(std::vector<Vector2> bezierCurvePoints, std::vector<Vector2> controlPoints, float radius, std::vector<Vector2> tangents, std::vector<Vector2> tangentNormals){
-    for (size_t i = 0; i < controlPoints.size(); i++)
+void draw(std::vector<Vector2> bezierCurvePoints, std::vector<Vector2> controlPoints, float radius, std::vector<Vector2> tangents, std::vector<Vector2> tangentNormals)
+{
+    for (int i = 0; i < controlPoints.size(); i++) // Control Points
     {
-        DrawCircle(controlPoints[i].x, controlPoints[i].y, radius, GREEN); 
+        DrawCircle(controlPoints[i].x, controlPoints[i].y, radius, GREEN);
     }
-    for (size_t i = 0; i < tangents.size(); i++)
+    for (int i = 0; i < tangents.size(); i++) // Tangent
     {
-        //DrawLine(bezierCurvePoints[tangents.size()*i].x, bezierCurvePoints[tangents.size()*i].y, tangents[i].x, tangents[i].y,RED);
-        Vector2 temp = Vector2Rotate(tangentNormals[i], 1.5708);
-        
-        DrawLine(bezierCurvePoints[tangents.size()*i].x, 
-                 bezierCurvePoints[tangents.size()*i].y,
-                 bezierCurvePoints[tangents.size()*i].x + temp.x * 30, 
-                 bezierCurvePoints[tangents.size()*i].y + temp.y * 30,RED);
+
+        DrawLine(bezierCurvePoints[(int)bezierCurvePoints.size() / tangents.size() * i].x,
+                 bezierCurvePoints[(int)bezierCurvePoints.size() / tangents.size() * i].y,
+                 bezierCurvePoints[(int)bezierCurvePoints.size() / tangents.size() * i].x + tangentNormals[i].x * 30,
+                 bezierCurvePoints[(int)bezierCurvePoints.size() / tangents.size() * i].y + tangentNormals[i].y * 30, RED);
     }
-    for (size_t i = 0; i < bezierCurvePoints.size(); i++)
+    for (int i = 0; i < tangents.size(); i++) // Tangent Normal
     {
-        if(i+1 >= bezierCurvePoints.size()){
+        // DrawLine(bezierCurvePoints[tangents.size()*i].x, bezierCurvePoints[tangents.size()*i].y, tangents[i].x, tangents[i].y,RED);
+        Vector2 temp = Vector2Rotate(tangentNormals[i], -1.5708);
+
+        DrawLine(bezierCurvePoints[(int)bezierCurvePoints.size() / tangents.size() * i].x,
+                 bezierCurvePoints[(int)bezierCurvePoints.size() / tangents.size() * i].y,
+                 bezierCurvePoints[(int)bezierCurvePoints.size() / tangents.size() * i].x + temp.x * 30,
+                 bezierCurvePoints[(int)bezierCurvePoints.size() / tangents.size() * i].y + temp.y * 30, RED);
+    }
+    for (int i = 0; i < bezierCurvePoints.size(); i++)
+    {
+        if (i + 1 >= bezierCurvePoints.size())
+        {
             continue;
         }
-        DrawLine(bezierCurvePoints[i].x, bezierCurvePoints[i].y, bezierCurvePoints[i+1].x, bezierCurvePoints[i+1].y, YELLOW);
+        DrawLine(bezierCurvePoints[i].x, bezierCurvePoints[i].y, bezierCurvePoints[i + 1].x, bezierCurvePoints[i + 1].y, YELLOW);
     }
 }
 
-bool IsControlPointValid(int r, int n, int x){ // work in progress
-    return ( ( (r + 1) + (r * x) ) == r);
+void InitializeParticle(Particle *array, int arraySize, Vector2 &initialParticlePos, Vector2 &initialTanPos)
+{
+    for (int i = 0; i < arraySize; i++)
+    {
+        if (array[i].isActive == false)
+        {
+            array[i].isActive = true;
+            array[i].position.x = initialParticlePos.x;
+            array[i].position.y = initialParticlePos.y;
+
+            float dot = array[i].position.x * (array[i].position.x + initialTanPos.x * 30.0f) + array[i].position.y * (array[i].position.y + initialTanPos.y);
+            float det = array[i].position.x * (array[i].position.y + initialTanPos.y * 30.0f) - array[i].position.y * (array[i].position.x + initialTanPos.x);
+            array[i].rotation = atan2f(det, dot) * (180.0f / 3.14f);
+
+            array[i].speed = 250;
+            array[i].currentCPoint = 0;
+            array[i].currentTanPoint = 0;
+            break;
+        }
+    }
 }
 
-int main(){
+void EmitParticles(Particle *array, int arraySize, float deltaTime, std::vector<Vector2> &cPoints, std::vector<Vector2> &tangents)
+{
+    for (int i = 0; i < arraySize; i++)
+    {
+
+        // bezierCurvePoints[(int)bezierCurvePoints.size() / tangents.size() * i]
+
+        if (array[i].position.x <= 0 || array[i].position.x >= WINDOW_WIDTH || array[i].position.y <= 0 ||
+            array[i].position.y >= WINDOW_HEIGHT || array[i].currentCPoint >= cPoints.size() - 1)
+            array[i].isActive = false;
+
+        int nextCPoint;
+        if (array[i].currentCPoint < cPoints.size() - 1) // Only up to penultimate cPoint
+            nextCPoint = array[i].currentCPoint + 1;
+
+        int nextTanPoint;
+        if (array[i].currentTanPoint < tangents.size() - 1)
+            nextTanPoint = array[i].currentTanPoint + 1;
+
+        // X Movement
+        if (abs(array[i].position.x - cPoints[nextCPoint].x) <= (array[i].speed) * deltaTime) // Snap to next point if it's near enough
+        {
+            array[i].position.x = cPoints[nextCPoint].x;
+        }
+        else if (array[i].position.x != cPoints[nextCPoint].x)
+        {
+            float direction = (array[i].position.x - cPoints[nextCPoint].x < 0) ? 1.0f : -1.0f;
+            array[i].position.x += (array[i].speed) * deltaTime * direction;
+        }
+
+        // Y Movement
+        if (abs(array[i].position.y - cPoints[nextCPoint].y) <= (array[i].speed) * deltaTime) // Snap to next point if it's near enough
+        {
+            array[i].position.y = cPoints[nextCPoint].y;
+        }
+        else if (array[i].position.y != cPoints[nextCPoint].y)
+        {
+            float direction = (array[i].position.y - cPoints[nextCPoint].y < 0) ? 1.0f : -1.0f;
+            array[i].position.y += (array[i].speed) * deltaTime * direction;
+        }
+
+        if (array[i].position.x == cPoints[nextCPoint].x && array[i].position.y == cPoints[nextCPoint].y)
+            array[i].currentCPoint++;
+
+        if (array[i].currentCPoint % (int)(cPoints.size() / tangents.size()) == 0 && array[i].isActive && array[i].currentCPoint != 0)
+        {
+            // Sauce: https://stackoverflow.com/questions/14066933/direct-way-of-computing-the-clockwise-angle-between-two-vectors
+            // float dot = array[i].position.x * (array[i].position.x + tangents[array[i].currentTanPoint].x * 30.0f) + array[i].position.y * (array[i].position.y + tangents[array[i].currentTanPoint].y);
+            // float det = array[i].position.x * (array[i].position.y + tangents[array[i].currentTanPoint].y * 30.0f) - array[i].position.y * (array[i].position.x + tangents[array[i].currentTanPoint].x);
+            float det = array[i].position.y - (array[i].position.y + tangents[array[i].currentTanPoint].y * 30.0f);
+            float dot = array[i].position.x - (array[i].position.x + tangents[array[i].currentTanPoint].x * 30.0f);
+            array[i].rotation = atan2f(det, dot) * (180.0f / 3.14f); // In degrees
+            // array[i].currentTanPoint++;
+
+            std::cout << array[i].rotation << std::endl;
+        }
+
+        if (array[i].isActive)
+            DrawRectanglePro({array[i].position.x, array[i].position.y, 50, 20}, {25, 10}, array[i].rotation, BLUE); // Rotation in Degrees
+    }
+}
+
+bool IsControlPointValid(int r, int n, int x)
+{ // work in progress
+    return (((r + 1) + (r * x)) == r);
+}
+
+int main()
+{
     int r; // order of the curve
     int s; // steps
     int v;
@@ -154,13 +266,14 @@ int main(){
     std::cout << "Input number of times Tangents will be drawn:" << std::endl;
     std::cin >> v;
     std::cout << "Input number of control points:" << std::endl;
-    std::cin >> n; 
-    if(!IsControlPointValid(r, n, 0)){
-        std::cout << "Is Control Point Valid " << ( ( (r + 1) + (r * 0) ) == n) <<std::endl;
+    std::cin >> n;
+    if (!IsControlPointValid(r, n, 0))
+    {
+        std::cout << "Is Control Point Valid " << (((r + 1) + (r * 0)) == n) << std::endl;
     }
     // make sure to check if this is valid at this step (check slides)
     std::vector<Vector2> controlPoints;
-    for (size_t i = 0; i < n; i++)
+    for (int i = 0; i < n; i++)
     {
         Vector2 vector;
         std::cin >> vector.x;
@@ -169,11 +282,10 @@ int main(){
     }
 
     std::vector<std::vector<int>> lookupTable = GeneratePascalLookUpTable(r, s, n);
-    std::vector<int> lastRow = lookupTable[lookupTable.size()-1];
+    std::vector<int> lastRow = lookupTable[lookupTable.size() - 1];
     std::vector<Vector2> bezierCurvePoints = ComputeForBezierCurve(r, s, n, lastRow, controlPoints);
 
-
-    std::vector<int> secondToLastRow = lookupTable[lookupTable.size()-2];    
+    std::vector<int> secondToLastRow = lookupTable[lookupTable.size() - 2];
     std::vector<Vector2> tangents = GetTangents(r, v, n, secondToLastRow, controlPoints);
     std::vector<Vector2> tangentNormals = GetTangentNormals(tangents);
 
@@ -195,27 +307,50 @@ int main(){
         std::cout << std::endl;
     }*/
 
-    InitWindow(800, 600, "Tamano - Exercise2");
+    InitWindow(800, 600, "OlivaresTamano_Homework2");
 
-    while(!WindowShouldClose()){
-        
-        if(IsMouseButtonDown(0)){
-            for (size_t i = 0; i < controlPoints.size(); i++)
+    bool spacePressed = false;
+    int particleArraySize = 100;
+    Particle *particleArray = new Particle[particleArraySize];
+
+    while (!WindowShouldClose())
+    {
+        float deltaTime = GetFrameTime();
+
+        if (IsMouseButtonDown(0))
+        {
+            for (int i = 0; i < controlPoints.size(); i++)
             {
-                if(CheckCollisionPointCircle(GetMousePosition(), controlPoints[i], radius+5)){
+                if (CheckCollisionPointCircle(GetMousePosition(), controlPoints[i], radius + 5))
+                {
                     controlPoints[i] = GetMousePosition();
                     bezierCurvePoints = ComputeForBezierCurve(r, s, n, lastRow, controlPoints); // compute only when moving the curve
-                    tangents = GetTangents(r, v, n, secondToLastRow, controlPoints);
+                    tangents = GetTangents(r, v, n, secondToLastRow, bezierCurvePoints);
                     tangentNormals = GetTangentNormals(tangents);
                 }
             }
         }
+
+        if (IsKeyPressed(KEY_SPACE))
+        {
+            spacePressed = true;
+            InitializeParticle(particleArray, particleArraySize, controlPoints[0], tangentNormals[0]);
+        }
+
         BeginDrawing();
 
         ClearBackground(BLACK);
+        if (spacePressed)
+        {
+            // DrawRectanglePro({controlPoints[0].x, controlPoints[0].y, 50, 20}, {25, 10}, 45, BLUE); // Rotation in Degrees
+        }
+        EmitParticles(particleArray, particleArraySize, deltaTime, bezierCurvePoints, tangentNormals);
+
         draw(bezierCurvePoints, controlPoints, radius, tangents, tangentNormals);
         EndDrawing();
     }
+
+    delete[] particleArray;
     CloseWindow();
     return 0;
 }
