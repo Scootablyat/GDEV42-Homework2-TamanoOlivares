@@ -113,7 +113,7 @@ std::vector<Vector2> GetTangents(int r, int v, int n, std::vector<int> secondToL
             << controlPoints[j].x << " ," << controlPoints[j].y << std::endl; */
         }
         tangents.push_back(point); // Vector2Normalize(point)
-        // std::cout << "Tangents: " << point.x << " ," << point.y << std::endl;
+        std::cout << "Tangents: " << point.x << " ," << point.y << std::endl;
     }
     return tangents;
 }
@@ -135,6 +135,8 @@ void draw(std::vector<Vector2> bezierCurvePoints, std::vector<Vector2> controlPo
     {
         DrawCircle(controlPoints[i].x, controlPoints[i].y, radius, GREEN);
     }
+
+    /*
     for (int i = 0; i < tangents.size(); i++) // Tangent
     {
 
@@ -143,16 +145,18 @@ void draw(std::vector<Vector2> bezierCurvePoints, std::vector<Vector2> controlPo
                  bezierCurvePoints[(int)bezierCurvePoints.size() / tangents.size() * i].x + tangentNormals[i].x * 30,
                  bezierCurvePoints[(int)bezierCurvePoints.size() / tangents.size() * i].y + tangentNormals[i].y * 30, RED);
     }
+    */
+    
     for (int i = 0; i < tangents.size(); i++) // Tangent Normal
     {
         // DrawLine(bezierCurvePoints[tangents.size()*i].x, bezierCurvePoints[tangents.size()*i].y, tangents[i].x, tangents[i].y,RED);
         Vector2 temp = Vector2Rotate(tangentNormals[i], 1.5708);
 
         
-        DrawLine(bezierCurvePoints[(int) tangents.size() * i].x,
-                 bezierCurvePoints[(int) tangents.size() * i].y,
-                 bezierCurvePoints[(int) tangents.size() * i].x + temp.x * 30,
-                 bezierCurvePoints[(int) tangents.size() * i].y + temp.y * 30, RED);
+        DrawLine(bezierCurvePoints[tangents.size() * i].x,
+                 bezierCurvePoints[tangents.size() * i].y,
+                 bezierCurvePoints[tangents.size() * i].x + temp.x * 30,
+                 bezierCurvePoints[tangents.size() * i].y + temp.y * 30, RED);
         
     }
     for (int i = 0; i < bezierCurvePoints.size(); i++)
@@ -327,7 +331,7 @@ int main()
                 {
                     controlPoints[i] = GetMousePosition();
                     bezierCurvePoints = ComputeForBezierCurve(r, s, n, lastRow, controlPoints); // compute only when moving the curve
-                    tangents = GetTangents(r, v, n, secondToLastRow, bezierCurvePoints);
+                    tangents = GetTangents(r, v, n, secondToLastRow, controlPoints);
                     tangentNormals = GetTangentNormals(tangents);
                 }
             }
