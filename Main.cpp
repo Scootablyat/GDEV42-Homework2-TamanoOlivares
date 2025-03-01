@@ -190,19 +190,19 @@ void EmitParticles(Particle *array, int arraySize, float deltaTime, std::vector<
     for (int i = 0; i < arraySize; i++)
     {
 
-        // bezierCurvePoints[(int)bezierCurvePoints.size() / tangents.size() * i]
-
-        if (array[i].position.x <= 0 || array[i].position.x >= WINDOW_WIDTH || array[i].position.y <= 0 ||
-            array[i].position.y >= WINDOW_HEIGHT || array[i].currentCPoint >= cPoints.size() - 1)
+        if (array[i].position.x <= 0 || array[i].position.x >= WINDOW_WIDTH || array[i].position.y <= 0 || array[i].position.y >= WINDOW_HEIGHT || array[i].currentCPoint >= cPoints.size() - 1)
+        {
             array[i].isActive = false;
+            continue;
+        }
 
         int nextCPoint;
         if (array[i].currentCPoint < cPoints.size() - 1) // Only up to penultimate cPoint
             nextCPoint = array[i].currentCPoint + 1;
 
-        int nextTanPoint;
-        if (array[i].currentTanPoint < tangents.size() - 1)
-            nextTanPoint = array[i].currentTanPoint + 1;
+        // int nextTanPoint;
+        // if (array[i].currentTanPoint < tangents.size() - 1)
+        //     nextTanPoint = array[i].currentTanPoint + 1;
 
         // X Movement
         if (abs(array[i].position.x - cPoints[nextCPoint].x) <= (array[i].speed) * deltaTime) // Snap to next point if it's near enough
@@ -229,7 +229,7 @@ void EmitParticles(Particle *array, int arraySize, float deltaTime, std::vector<
         if (array[i].position.x == cPoints[nextCPoint].x && array[i].position.y == cPoints[nextCPoint].y)
             array[i].currentCPoint++;
 
-        if (array[i].currentCPoint % (int)(cPoints.size() / tangents.size()) == 0 && array[i].isActive && array[i].currentCPoint != 0)
+        if (array[i].currentCPoint % (int)(cPoints.size() / tangents.size()) == 0 && array[i].isActive && array[i].currentCPoint != 0 && array[i].currentTanPoint < tangents.size() - 1)
         {
             // Sauce: https://stackoverflow.com/questions/14066933/direct-way-of-computing-the-clockwise-angle-between-two-vectors
             // float dot = array[i].position.x * (array[i].position.x + tangents[array[i].currentTanPoint].x * 30.0f) + array[i].position.y * (array[i].position.y + tangents[array[i].currentTanPoint].y);
